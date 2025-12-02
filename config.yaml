@@ -1,0 +1,6 @@
+
+ollama:
+  model: llama3.1:8b          # 8b is enough and fast on laptop
+  base_url: http://localhost:11434
+
+hotkey: ctrl+shift+w
