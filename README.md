@@ -1,77 +1,68 @@
-# 🎙️ SANA – AI Voice Assistant
+🎙️ MyDataWhisperer — AI Voice Assistant for Windows
 
-A lightweight desktop voice assistant built with Python that supports:
+MyDataWhisperer is a Python-based desktop voice assistant that combines AI, machine learning, and automation to make interacting with your computer effortless. By pressing Caps Lock, the assistant wakes instantly, listens to your voice, transcribes your command using Whisper, and executes tasks like opening applications, automating workflows, or providing audible confirmation via text-to-speech. With fuzzy matching for commands and a lightweight local database to log actions, MyDataWhisperer creates a seamless, responsive, and intelligent desktop experience.
 
-✔ Voice wake-up
-✔ Speech-to-text (Whisper)
-✔ Fuzzy command matching
-✔ App launching
-✔ Text-to-speech replies
-✔ Windows automation
+This project demonstrates a full-stack approach to AI-driven automation. It showcases practical skills in Python scripting, speech-to-text (Whisper), text-to-speech (pyttsx3), automation with PyAutoGUI, audio processing (sounddevice, numpy, scipy), configuration handling (PyYAML), and local data management. The assistant is designed to handle imprecise speech gracefully and provide instant feedback, highlighting both natural language processing and interactive automation capabilities.
 
-🚀 Features
-1️⃣ Voice Activation
+⚡ Installation & Setup
 
-Press Caps Lock to trigger SANA
+To get started:
 
-Windows API captures the event
+# Clone the repository
+git clone https://github.com/saisatwi/sana-voice-assistant.git
+cd MyDataWhisperer
 
-Immediately calls jarvis() function
+# Create a virtual environment
+python -m venv venv
 
-Sana responds: “Yes boss?”
+# Activate the environment
+# Windows
+venv\Scripts\activate
+# Linux/Mac
+source venv/bin/activate
 
-2️⃣ Audio Recording (3 seconds)
+# Install required packages
+pip install -r requirements.txt
 
-Uses sounddevice
 
-Captures 16 kHz WAV
+Required packages include: pyttsx3, sounddevice, faster-whisper, PyAutoGUI, PyYAML, numpy, scipy. These libraries handle AI transcription, audio input/output, automation, and configuration.
 
-Stored temporarily before sending to Whisper
+▶️ Running the Assistant
 
-3️⃣ Whisper Speech-to-Text
+Option 1 — Python Script:
 
-Uses faster-whisper
+python sana_forever.py
 
-Converts your speech into text
 
-Supports accents & noisy environments
+Option 2 — Background Batch Run (Windows):
 
-4️⃣ Fuzzy Command Matching
+Double-click sana_forever.bat
 
-Cleans transcripts
+Press Caps Lock anytime to activate MyDataWhisperer
 
-Uses:
+Once activated, the assistant listens, interprets your commands, executes actions, and confirms results via voice, providing a fully interactive experience.
 
-difflib.get_close_matches
+🎯 Why This Project Matters
 
-Dynamic keyword matching
+Demonstrates AI/ML integration with Whisper ASR
 
-Extremely accurate for:
+Shows Python automation and scripting expertise
 
-"Open Chrome"
+Highlights NLP and fuzzy matching capabilities
 
-"Start Notepad"
+Includes configurable system architecture and data logging
 
-“Launch Visual Studio Code”
+Relevant for roles like AI/ML Engineer, Python Developer, Data Engineer, Automation Engineer
 
-etc.
+Project structure:
 
-5️⃣ App Launcher
-
-Uses PyAutoGUI to simulate:
-
-Windows Key
-
-Typing application name
-
-Pressing Enter
-
-6️⃣ Sana Speaks Back
-
-Text-to-speech (pyttsx3)
-
-Confirms actions like:
-
-“Opening Chrome”
-
-“Launching Notepad”
+MyDataWhisperer/
+│
+├── config.yaml            # Configuration settings
+├── sana_forever.py        # Main script
+├── sana_forever.bat       # Batch file for Windows background run
+├── requirements.txt       # Python dependencies
+├── mydatadb/              # Local database folder
+│   ├── app_list.json
+│   └── logs.txt
+└── README.md              # Project documentation
