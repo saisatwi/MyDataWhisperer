@@ -37,5 +37,3 @@ text- Speaks "Sana is ready, sir"
 - Conversation memory
 - More voice personalities
 - GUI tray icon
-
-
