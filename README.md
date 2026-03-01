@@ -38,4 +38,4 @@ text- Speaks "Sana is ready, sir"
 - More voice personalities
 - GUI tray icon
 
-License: MIT – Free to use/modify.
+
