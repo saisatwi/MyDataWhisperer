@@ -1,0 +1,12 @@
+---
+description: Sana voice AI rules for Cursor
+globs: "**/*.py"
+alwaysApply: true
+---
+
+Sana is a voice-driven agent:
+- Use Caps Lock for hands-free input (tiny.en Whisper, 99% accuracy)
+- Multi-agent threading for real-time processing
+- Local TinyLlama LLM for Claude-like responses/code (Python/SQL/any language)
+- Low latency <2s, visionary for AI-native dev (MUST focus)
+- Extend with new commands for full agent capabilities

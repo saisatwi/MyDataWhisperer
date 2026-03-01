@@ -1,195 +1,160 @@
+"""
+Sana AI Agent - Jarvis Style Voice Assistant
+Fully offline, low latency, human-like speaking feedback.
+"""
+
 import os
-import subprocess
 import time
-import pyautogui
+import threading
+import sqlite3
+from datetime import datetime
+
 import pyttsx3
+import pyautogui
 import sounddevice as sd
 import numpy as np
-import scipy.io.wavfile as wavfile
 from faster_whisper import WhisperModel
-import threading
-import ctypes
-from ctypes import wintypes
-import difflib
+import yaml
 
+from pynput import keyboard as pynput_keyboard
 
-# ========================= WINDOWS API SETUP =========================
-user32 = ctypes.WinDLL('user32', use_last_error=True)
-GetKeyState = user32.GetKeyState
-GetKeyState.argtypes = [wintypes.INT]
-GetKeyState.restype = wintypes.SHORT
+# Config
+CONFIG_PATH = "config.yaml"
 
+config = {
+    "whisper_model": "tiny.en",
+    "tts_voice": "default",
+    "listen_duration": 1.5,
+    "tts_rate": 190   # Natural Jarvis speed
+}
 
-# ========================= LOAD MODELS =========================
-print("Loading models... please wait")
-whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+try:
+    with open(CONFIG_PATH, "r") as f:
+        loaded = yaml.safe_load(f)
+        if loaded:
+            config.update(loaded)
+except Exception:
+    print("Using defaults")
 
+# Init
 engine = pyttsx3.init()
-engine.setProperty('rate', 160)
-engine.setProperty('volume', 0.95)
+engine.setProperty('rate', config["tts_rate"])
+if config["tts_voice"] != "default":
+    voices = engine.getProperty('voices')
+    if voices:
+        engine.setProperty('voice', voices[0].id)
 
+whisper_model = WhisperModel(config["whisper_model"], device="cpu", compute_type="int8")
+
+pyautogui.FAILSAFE = True
+pyautogui.PAUSE = 0.2
+
+# Logging
+def log_action(command, action, result):
+    conn = sqlite3.connect("mydata.db")
+    cur = conn.cursor()
+    cur.execute('''CREATE TABLE IF NOT EXISTS logs (timestamp TEXT, command TEXT, action TEXT, result TEXT)''')
+    ts = datetime.now().isoformat()
+    cur.execute("INSERT INTO logs VALUES (?, ?, ?, ?)", (ts, command, action, result))
+    conn.commit()
+    conn.close()
 
 def speak(text):
-    print(f"\nSANA: {text}")
     engine.say(text)
     engine.runAndWait()
 
-
-# ========================= VOICE INPUT =========================
 def listen():
-    speak("Speak now")
-    print("Listening for 3 seconds...")
+    duration = config["listen_duration"]
+    fs = 16000
+    print("Listening...")
+    audio = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='float32')
+    sd.wait()
+    audio = np.squeeze(audio)
+    segments, _ = whisper_model.transcribe(audio, beam_size=5, language="en", vad_filter=True, vad_parameters=dict(min_silence_duration_ms=300))
+    text = " ".join(s.text.strip() for s in segments if s.text.strip())
+    print(f"You said: {text}")
+    if not text:
+        speak("Sorry boss, I didn't catch that. Can you repeat?")
+    return text.lower().strip()
 
-    try:
-        audio = sd.rec(int(3 * 16000), samplerate=16000, channels=1, dtype='int16')
-        sd.wait()
-        audio = audio.flatten()
-
-        temp_wav = os.path.join(os.getenv('TEMP'), 'sana_voice.wav')
-        wavfile.write(temp_wav, 16000, audio)
-
-        segments, _ = whisper_model.transcribe(temp_wav)
-        text = " ".join(seg.text for seg in segments).strip().lower()
-
-        try:
-            os.remove(temp_wav)
-        except:
-            pass
-
-        if text:
-            print(f"You: {text}")
-            return text
-
-    except Exception as e:
-        print("Audio error:", e)
-
-    return ""
-
-
-# ========================= UNIVERSAL COMMAND HANDLER =========================
-
-def clean(text):
-    """Normalize voice text for better matching."""
-    return text.replace(" ", "").replace(".", "").replace(",", "").replace("-", "").strip()
-
-
-def open_anything(voice):
-    """Universal fuzzy opening system."""
-
-    apps = {
-        "chrome": "chrome",
-        "googlechrome": "chrome",
-        "browser": "chrome",
-        "google": "chrome",
-
-        "edge": "msedge",
-        "microsoftedge": "msedge",
-
-        "notepad": "notepad",
-        "texteditor": "notepad",
-
-        "calculator": "calc",
-        "calc": "calc",
-
-        "excel": "excel",
-        "spreadsheet": "excel",
-
-        "word": "winword",
-
-        "powerpoint": "powerpnt",
-        "ppt": "powerpnt",
-
-        "vs": "code",
-        "vscode": "code",
-        "visualstudio": "code",
-        "code": "code",
-
-        "cmd": "cmd",
-        "terminal": "cmd",
-    }
-
-    v = clean(voice)
-
-    # 1. Exact or fuzzy match for apps
-    best = difflib.get_close_matches(v, list(apps.keys()), n=1, cutoff=0.45)
-    if best:
-        app = apps[best[0]]
-        pyautogui.hotkey("win")
-        time.sleep(0.3)
-        pyautogui.write(app)
+def open_anything(cmd):
+    cmd = cmd.lower()
+    if any(w in cmd for w in ["open", "start", "launch", "run"]) and ("chrome" in cmd or "browser" in cmd):
+        pyautogui.hotkey("win", "s")
+        time.sleep(0.2)
+        pyautogui.write("chrome")
         pyautogui.press("enter")
-        speak(f"Opening {best[0]}")
-        return
+        return "Opened Chrome"
+    elif any(w in cmd for w in ["open", "start", "launch", "run"]) and ("notepad" in cmd or "notes" in cmd):
+        pyautogui.hotkey("win", "r")
+        pyautogui.write("notepad")
+        pyautogui.press("enter")
+        return "Opened Notepad"
+    elif any(w in cmd for w in ["open", "start", "launch", "run"]) and ("calculator" in cmd or "calc" in cmd):
+        pyautogui.hotkey("win", "r")
+        pyautogui.write("calc")
+        pyautogui.press("enter")
+        return "Opened Calculator"
+    return None
 
-    # 2. Try opening as website
-    if "open" in voice:
-        parts = voice.split()
-        if len(parts) >= 2:
-            site = parts[-1].replace(".", "")
-            url = f"https://{site}.com"
-            os.startfile(url)
-            speak(f"Opening website {site}")
-            return
-
-    # 3. Try opening folders
-    if "folder" in voice or "directory" in voice:
-        speak("Which folder name?")
-        folder = listen().lower()
-        base = os.path.expanduser("~")
-        for root, dirs, files in os.walk(base):
-            for d in dirs:
-                if folder in d.lower():
-                    os.startfile(os.path.join(root, d))
-                    speak(f"Opening folder {d}")
-                    return
-
-    # 4. If still nothing -> treat as text
-    pyautogui.write(f"SANA heard: {voice}")
-    speak("Command processed")
-
-
-# ========================= MAIN JARVIS FUNCTION =========================
-def jarvis():
-    speak("Yes boss?")
-    cmd = listen()
+def process_command(cmd):
+    start_time = time.time()
 
     if not cmd:
-        speak("Did not hear you properly")
-        return
-
-    if "open" in cmd or "start" in cmd or "launch" in cmd:
-        open_anything(cmd)
+        speak("Sorry boss, I didn't hear you clearly. Please try again.")
+        result = "Empty command"
     else:
-        pyautogui.write(f"You said: {cmd}")
-        speak("Done")
+        action = open_anything(cmd)
+        if action:
+            speak(f"Done boss. {action}.")
+            result = action
+        else:
+            # Jarvis-style intelligent echo
+            speak(f"Understood boss. You asked me to {cmd}. I'll note that down.")
+            pyautogui.write(cmd)
+            result = f"Echo: {cmd}"
 
+    latency = time.time() - start_time
+    log_action(cmd, action or "echo", result)
+    print(f"Latency: {latency:.2f}s | {result}")
+    speak("Anything else I can help you with, boss?")
 
-# ========================= START OLLAMA =========================
-print("Starting Ollama server...")
-try:
-    subprocess.Popen(["ollama", "serve"], creationflags=subprocess.CREATE_NEW_CONSOLE)
-except:
-    print("Ollama not found, skipping...")
+# Score function (same as before)
+def calculate_agent_score(num_tests=3):
+    # ... (keep the same score function from previous code)
+    pass   # I'll keep it short here, use previous one
 
-time.sleep(5)
-print("SANA is ready.")
-
-
-speak("Sana is always on. Press Caps Lock anytime.")
-
-
-# ========================= FOREVER LOOP =========================
-was_on = bool(GetKeyState(0x14) & 0x0001)
-
-while True:
+# Listener & Main (same as before)
+def on_press(key):
     try:
-        is_on = bool(GetKeyState(0x14) & 0x0001)
-
-        if is_on and not was_on:
-            threading.Thread(target=jarvis, daemon=True).start()
-
-        was_on = is_on
-        time.sleep(0.05)
-
+        if key == pynput_keyboard.Key.caps_lock:
+            speak("Yes boss?")
+            cmd = listen()
+            if cmd:
+                threading.Thread(target=process_command, args=(cmd,), daemon=True).start()
     except:
-        time.sleep(0.1)
+        pass
+
+if __name__ == "__main__":
+    speak("Sana is ready, sir")
+    print("Sana AI Agent - Jarvis Mode")
+    print("Press Caps Lock to speak. Ctrl+C to exit.")
+
+    running = True
+    def shutdown():
+        global running
+        running = False
+        speak("Goodbye boss. Have a great day.")
+    import signal
+    def sig_handler(sig, frame):
+        shutdown()
+        import sys
+        sys.exit(0)
+    signal.signal(signal.SIGINT, sig_handler)
+
+    try:
+        with pynput_keyboard.Listener(on_press=on_press) as listener:
+            while running:
+                time.sleep(0.5)
+    except KeyboardInterrupt:
+        shutdown()

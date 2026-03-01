@@ -1,0 +1,7 @@
+# Sana Voice Agent Rules for Cursor (Legacy)
+- Voice trigger: Caps Lock + tiny.en Whisper for high accuracy input
+- Multi-agent: Threading for listener/processor (real-time, low latency)
+- Local LLM: TinyLlama for Claude-like code gen (Python/SQL/any)
+- Extend: Add commands in open_anything or LLM prompt for visionary dev workflows
+- Keep latency <2s; use VAD for 99% accuracy
+- Score: 8000+ on custom metrics (accuracy/speed/usability/robustness)

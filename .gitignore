@@ -1,5 +1,6 @@
-venv/
+.env
+mydata.db
+logs.txt
 __pycache__/
-*.wav
-*.log
-*.tmp
+*.pyc
+venv/
