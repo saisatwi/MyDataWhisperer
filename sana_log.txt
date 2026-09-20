@@ -1,0 +1,15 @@
+2026-09-20T17:04:57.202530 | sana_app_launched | version=1.1.0
+2026-09-20T17:05:02.990604 | sana_mic_check_passed | Microphone (Realtek(R) Audio)
+2026-09-20T17:05:44.407194 | sana_first_command_success | intent=DateTime | cmd=what is the time? what is the time?
+2026-09-20T17:27:12.795638 | sana_app_launched | version=1.1.0
+2026-09-20T17:27:18.508019 | sana_mic_check_passed | Microphone (Realtek(R) Audio)
+2026-09-20T20:38:32.691655 | sana_web_command | intent=DateTime | text=what is the time
+2026-09-20T20:54:12.505660 | sana_web_command | intent=Informational | text=hi
+2026-09-20T21:03:41.436794 | sana_web_command | intent=DateTime | text=what is the time
+2026-09-20T21:04:08.082801 | sana_web_command | intent=Informational | text=who is the president of India
+2026-09-20T21:04:43.384616 | sana_web_command | intent=Informational | text=tell me about God Venkateswara Swamy
+2026-09-20T21:30:37.411171 | sana_web_command | intent=Informational | text=who is the president of India
+2026-09-20T21:31:41.141908 | sana_web_command | intent=Informational | text=who is Chiranjeevi
+2026-09-20T21:31:52.805175 | sana_web_command | intent=DateTime | text=what is the time now
+2026-09-20T22:24:12.041840 | sana_web_command | intent=Informational | text=who is president of India
+2026-09-20T22:24:29.842284 | sana_web_command | intent=Informational | text=who is Venkateswara Swamy

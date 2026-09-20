@@ -1,12 +1,37 @@
-﻿faster-whisper==1.0.3
-transformers==4.38.2
-huggingface-hub==0.23.4
-ctranslate2==4.4.0
-torch==2.2.2
-accelerate==0.27.2
-pyttsx3==2.99
-PyAutoGUI==0.9.54
-sounddevice==0.5.3
-PyYAML==6.0.3
-numpy==2.2.6
-pynput==1.8.1
+﻿# ────────────────────────────────────────────────────────────────
+#  Sana AI v1.1.0 — requirements.txt
+#  Install: pip install -r requirements.txt
+#  Python  : 3.11+  (3.12 also tested)
+#  Platform: Windows 10/11
+# ────────────────────────────────────────────────────────────────
+
+# ── Speech-to-Text ───────────────────────────────────────────────
+faster-whisper>=1.0.3          # Whisper tiny.en / base.en inference (CPU, int8)
+openai-whisper>=20240930       # Fallback model loader if faster-whisper unavailable
+
+# ── Audio ────────────────────────────────────────────────────────
+sounddevice>=0.4.7             # Real-time microphone capture (PortAudio binding)
+numpy>=1.26.0                  # Audio buffer manipulation
+
+# ── TTS ──────────────────────────────────────────────────────────
+pyttsx3>=2.90                  # Offline TTS (SAPI5 on Windows, espeak on Linux)
+
+# ── Hotkey / Input ───────────────────────────────────────────────
+pynput>=1.7.6                  # System-wide CapsLock listener (no admin required)
+pyautogui>=0.9.54              # Dictation typing + app launcher (Win+S search)
+
+# ── NLP / Math ───────────────────────────────────────────────────
+sympy>=1.13.3                  # Precise algebraic calculation engine
+wikipedia>=1.4.0               # Wikipedia API wrapper (informational intents)
+
+# ── Config ───────────────────────────────────────────────────────
+PyYAML>=6.0.2                  # config.yaml parsing
+
+# ── (Optional) ───────────────────────────────────────────────────
+# pywin32>=306                 # Windows COM — only needed for advanced app control
+# torch>=2.2.0                 # GPU acceleration for Whisper (CUDA / ROCm)
+#                              # Not needed for CPU int8 inference (default)
+aiohttp
+python-dotenv
+google-genai
+groq

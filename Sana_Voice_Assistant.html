@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sana AI</title>
+<style>
+  :root {
+    --bg: #09090b;
+    --card: #111114;
+    --border: #27272a;
+    --text: #fafafa;
+    --muted: #a1a1aa;
+    --accent: #8b5cf6;
+    --green: #22c55e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(17,17,20,0.85);
+    backdrop-filter: blur(12px);
+  }
+  .brand {
+    font-weight: 600;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .brand-dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  .status-pill {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .status-pill .led {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #52525b;
+    transition: 0.2s;
+  }
+  .status-pill.listening .led { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .status-pill.thinking .led  { background: #eab308; box-shadow: 0 0 8px #eab308; }
+  .status-pill.speaking .led  { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 16px;
+    overflow: hidden;
+  }
+
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 4px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  #messages::-webkit-scrollbar { width: 4px; }
+  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .msg {
+    max-width: 85%;
+    animation: rise 0.3s ease;
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .msg.user { align-self: flex-end; }
+  .msg.bot  { align-self: flex-start; }
+
+  .bubble {
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 15px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+  .msg.user .bubble {
+    background: var(--accent);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.bot .bubble {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+
+  .empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    color: var(--muted);
+    padding-bottom: 40px;
+  }
+  .empty h1 {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.03em;
+  }
+  .empty p { font-size: 14px; max-width: 320px; line-height: 1.5; }
+
+  .control {
+    padding: 16px 0 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .mic-wrap {
+    position: relative;
+    width: 80px;
+    height: 80px;
+  }
+  #mic {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 28px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    position: relative;
+    z-index: 2;
+  }
+  #mic:hover { transform: scale(1.05); border-color: #3f3f46; }
+  #mic.active {
+    background: var(--green);
+    border-color: var(--green);
+    color: #052e16;
+    box-shadow: 0 0 0 8px rgba(34,197,94,0.15);
+  }
+  #mic.thinking {
+    background: #eab308;
+    border-color: #eab308;
+    color: #422006;
+  }
+
+  .ripple {
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 2px solid var(--green);
+    opacity: 0;
+    pointer-events: none;
+  }
+  #mic.active + .ripple {
+    animation: ripple 1.6s ease-out infinite;
+  }
+  @keyframes ripple {
+    0%   { transform: scale(0.9); opacity: 0.6; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+
+  .hint {
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .hint kbd {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 2px 7px;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  #live {
+    font-size: 14px;
+    color: var(--accent);
+    min-height: 20px;
+    text-align: center;
+    font-style: italic;
+    max-width: 90%;
+  }
+
+  .settings {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    max-width: 480px;
+  }
+  .settings input {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    outline: none;
+  }
+  .settings input:focus { border-color: var(--accent); }
+  .settings input::placeholder { color: #52525b; }
+  .settings select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .error-banner {
+    background: #450a0a;
+    color: #fca5a5;
+    font-size: 13px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    text-align: center;
+    display: none;
+    max-width: 480px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><div class="brand-dot"></div> Sana</div>
+  <div class="status-pill" id="statusPill">
+    <div class="led"></div>
+    <span id="statusLabel">Ready</span>
+  </div>
+</header>
+
+<main>
+  <div id="messages">
+    <div class="empty" id="empty">
+      <h1>What can I help with?</h1>
+      <p>Press <kbd style="background:#18181b;border:1px solid #27272a;border-radius:4px;padding:1px 6px;font-size:12px;">CapsLock</kbd> or tap the mic and speak</p>
+    </div>
+  </div>
+
+  <div class="control">
+    <div class="error-banner" id="errorBanner"></div>
+    <div id="live"></div>
+
+    <div class="mic-wrap">
+      <button id="mic" title="Start / Stop">🎙️</button>
+      <div class="ripple"></div>
+    </div>
+
+    <div class="hint">Press <kbd>CapsLock</kbd> to talk · Press again when finished</div>
+
+    <div class="settings">
+      <input type="password" id="apiKey" placeholder="Groq API key (free) for best answers" autocomplete="off" />
+      <select id="provider">
+        <option value="groq">Groq</option>
+        <option value="openai">OpenAI</option>
+        <option value="local">Offline</option>
+      </select>
+    </div>
+  </div>
+</main>
+
+<script>
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const synth = window.speechSynthesis;
+
+let recognition = null;
+let listening = false;
+let processing = false;
+let transcript = "";
+let interim = "";
+
+const messagesEl  = document.getElementById("messages");
+const emptyEl     = document.getElementById("empty");
+const micBtn      = document.getElementById("mic");
+const liveEl      = document.getElementById("live");
+const statusPill  = document.getElementById("statusPill");
+const statusLabel = document.getElementById("statusLabel");
+const apiKeyInput = document.getElementById("apiKey");
+const providerSel = document.getElementById("provider");
+const errorBanner = document.getElementById("errorBanner");
+
+function setStatus(mode, label) {
+  statusPill.className = "status-pill " + (mode || "");
+  statusLabel.textContent = label;
+}
+
+function showError(msg) {
+  errorBanner.style.display = "block";
+  errorBanner.textContent = msg;
+  setTimeout(() => { errorBanner.style.display = "none"; }, 7000);
+}
+
+function addMsg(role, text) {
+  emptyEl.style.display = "none";
+  const wrap = document.createElement("div");
+  wrap.className = "msg " + role;
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.textContent = text;
+  wrap.appendChild(bubble);
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function createRecognition() {
+  if (!SpeechRecognition) {
+    showError("Speech recognition not supported. Please open this file in Chrome or Edge.");
+    return null;
+  }
+
+  const rec = new SpeechRecognition();
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.lang = navigator.language || "en-US";
+  rec.maxAlternatives = 1;
+
+  rec.onstart = () => {
+    listening = true;
+    micBtn.classList.add("active");
+    setStatus("listening", "Listening…");
+  };
+
+  rec.onresult = (e) => {
+    interim = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) transcript += t + " ";
+      else interim += t;
+    }
+    liveEl.textContent = (transcript + interim).trim();
+  };
+
+  rec.onerror = (e) => {
+    console.warn("STT error:", e.error);
+    if (e.error === "not-allowed") {
+      showError("Microphone permission denied. Allow the mic and refresh the page.");
+      stopListen(false);
+    } else if (e.error === "network") {
+      showError("Network error during speech recognition.");
+    }
+  };
+
+  rec.onend = () => {
+    if (listening && !processing) {
+      try { rec.start(); } catch (_) {}
+    }
+  };
+
+  return rec;
+}
+
+recognition = createRecognition();
+
+function startListen() {
+  if (processing || !recognition) return;
+  transcript = "";
+  interim = "";
+  liveEl.textContent = "";
+  try { recognition.start(); } catch (_) {}
+  listening = true;
+  micBtn.classList.add("active");
+  setStatus("listening", "Listening…");
+}
+
+function stopListen(process = true) {
+  listening = false;
+  micBtn.classList.remove("active");
+  try { recognition && recognition.stop(); } catch (_) {}
+
+  const text = (transcript + interim).trim();
+  liveEl.textContent = "";
+
+  if (process && text) {
+    handleQuery(text);
+  } else {
+    setStatus("", "Ready");
+  }
+}
+
+function toggleListen() {
+  if (listening) stopListen(true);
+  else startListen();
+}
+
+micBtn.addEventListener("click", toggleListen);
+
+// CapsLock key activates voice on any laptop / desktop
+document.addEventListener('keydown',(e)=>{
+  if(e.code==='CapsLock'||e.key==='CapsLock'||e.keyCode===20){
+    e.preventDefault();
+    e.stopPropagation();
+
+    // getModifierState tells us the NEW state AFTER this press
+    // true  = CapsLock just turned ON  → start listening
+    // false = CapsLock just turned OFF → stop and send answer
+    const capsIsNowON = e.getModifierState('CapsLock');
+
+    if(capsIsNowON){
+      startListening();
+    } else {
+      stopListening(true);
+    }
+  }
+}, true);
+
+async function handleQuery(text) {
+  processing = true;
+  micBtn.classList.add("thinking");
+  setStatus("thinking", "Thinking…");
+  addMsg("user", text);
+
+  let answer = "";
+  const key = apiKeyInput.value.trim();
+  const provider = providerSel.value;
+
+  try {
+    if (provider === "local" || !key) {
+      answer = offlineReply(text);
+    } else if (provider === "groq") {
+      answer = await callGroq(text, key);
+    } else {
+      answer = await callOpenAI(text, key);
+    }
+  } catch (err) {
+    console.error(err);
+    answer = "Sorry, something went wrong: " + (err.message || "unknown error");
+    showError(err.message || "API error");
+  }
+
+  addMsg("bot", answer);
+  speak(answer);
+
+  processing = false;
+  micBtn.classList.remove("thinking");
+  setStatus("", "Ready");
+}
+
+function offlineReply(q) {
+  const t = q.toLowerCase().trim();
+
+  if (/\b(time|clock)\b/.test(t)) {
+    return "It's " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ".";
+  }
+  if (/\b(date|today|day)\b/.test(t)) {
+    return "Today is " + new Date().toLocaleDateString(undefined, {
+      weekday: "long", year: "numeric", month: "long", day: "numeric"
+    }) + ".";
+  }
+  if (/\byear\b/.test(t)) {
+    return "The current year is " + new Date().getFullYear() + ".";
+  }
+
+  const math = t.match(/(?:what(?:'s| is)|calculate|solve)?\s*([0-9.+\-*/()%\s]+)/);
+  if (math || /[0-9]+\s*[+\-*/]/.test(t)) {
+    try {
+      let expr = (math ? math[1] : t).replace(/[^0-9+\-*/().%\s]/g, "").replace(/%/g, "/100");
+      const result = Function(`"use strict"; return (${expr})`)();
+      if (typeof result === "number" && isFinite(result)) {
+        return "The answer is " + result + ".";
+      }
+    } catch (_) {}
+  }
+
+  if (/^(hi|hello|hey|good (morning|afternoon|evening)|howdy)\b/.test(t)) {
+    return "Hi! I’m Sana. Ask me anything.";
+  }
+  if (/how are you/.test(t)) return "I’m doing great. How can I help you?";
+  if (/your name|who are you/.test(t)) return "I’m Sana, your voice assistant.";
+  if (/thank/.test(t)) return "You’re welcome!";
+  if (/bye|goodbye|see you/.test(t)) return "Goodbye! Talk to you later.";
+  if (/help|what can you do/.test(t)) {
+    return "I can answer questions, do math, tell the time and date, and chat. For the smartest answers on any topic, add a free Groq API key above.";
+  }
+
+  return `I heard: “${q}”\n\nFor detailed answers to any question, paste a free Groq API key in the box below and try again.`;
+}
+
+async function callGroq(text, key) {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + key
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "system",
+          content: "You are Sana, a friendly and concise voice assistant. Answer clearly and helpfully. Keep answers reasonably short so they are easy to listen to. Current date: " + new Date().toDateString() + "."
+        },
+        { role: "user", content: text }
+      ],
+      temperature: 0.65,
+      max_tokens: 900
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || "Groq error " + res.status);
+  }
+  const data = await res.json();
+  return data.choices[0].message.content.trim();
+}
+
+async function callOpenAI(text, key) {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + key
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are Sana, a friendly and concise voice assistant. Answer clearly. Keep answers easy to listen to."
+        },
+        { role: "user", content: text }
+      ],
+      temperature: 0.65,
+      max_tokens: 900
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || "OpenAI error " + res.status);
+  }
+  const data = await res.json();
+  return data.choices[0].message.content.trim();
+}
+
+function speak(text) {
+  if (!synth) return;
+  synth.cancel();
+
+  const clean = text
+    .replace(/[*_`#\[\]()]/g, " ")
+    .replace(/\n+/g, ". ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 1200);
+
+  const u = new SpeechSynthesisUtterance(clean);
+  u.rate = 1.02;
+  u.pitch = 1;
+  u.volume = 1;
+
+  const voices = synth.getVoices();
+  const preferred =
+    voices.find(v => /en-US|en-GB/.test(v.lang) && /Natural|Google|Microsoft|Samantha|Zira/i.test(v.name)) ||
+    voices.find(v => /^en/.test(v.lang));
+  if (preferred) u.voice = preferred;
+
+  u.onstart = () => setStatus("speaking", "Speaking…");
+  u.onend   = () => setStatus("", "Ready");
+  u.onerror = () => setStatus("", "Ready");
+
+  synth.speak(u);
+}
+
+if (synth) {
+  synth.getVoices();
+  synth.onvoiceschanged = () => synth.getVoices();
+}
+
+setStatus("", "Ready");
+</script>
+</body>
+</html>

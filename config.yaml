@@ -1,3 +1,63 @@
-whisper_model: tiny.en
-tts_voice: default
-listen_duration: 1.5
+# ──────────────────────────────────────────────────────────────
+#  Sana AI v1.1.0 — config.yaml
+#  All settings are optional. Delete this file to reset defaults.
+# ──────────────────────────────────────────────────────────────
+
+# ── Whisper model ────────────────────────────────────────────────
+# Options  : tiny.en (fastest, ~99% accuracy, <2s)
+#            base.en (more accurate, ~3s, 150 MB)
+#            small.en (best accuracy, ~5s, 500 MB, needs 2 GB RAM)
+whisper_model: "tiny.en"
+
+# ── Audio capture ────────────────────────────────────────────────
+# Seconds of audio recorded per CapsLock trigger.
+# Increase if your sentences are long. Decrease for faster response.
+listen_duration: 6.0
+
+# Minimum RMS level to count as real speech (below = treated as silence)
+noise_threshold: 0.01
+
+# ── Trigger mode ─────────────────────────────────────────────────
+# "toggle" : press CapsLock once to start, press again to stop + send
+# "hold"   : hold CapsLock while speaking, release to send
+trigger_mode: "toggle"
+
+# ── TTS ──────────────────────────────────────────────────────────
+# Words per minute: 160 = slow, 190 = natural Jarvis, 220 = fast
+tts_rate: 190
+
+# "default" uses the first available Windows SAPI5 voice.
+# Set to a specific voice ID from: engine.getProperty('voices')
+tts_voice: "default"
+
+# ── Voice Activity Detection ─────────────────────────────────────
+# Filters silence between words. Recommended: true
+vad_filter: true
+# Milliseconds of silence that ends a Whisper segment
+vad_min_silence_ms: 300
+
+# ── Dictation ────────────────────────────────────────────────────
+# If true, Sana types the AI response into your active window.
+# Say "type this: [your text]" to dictate directly.
+dictation_enabled: true
+
+# ── Wikipedia ────────────────────────────────────────────────────
+# Number of sentences returned for informational queries
+wikipedia_sentences: 3
+
+# ── Logging ──────────────────────────────────────────────────────
+# Write each command, intent, result, and latency to mydata.db (SQLite)
+log_to_db: true
+
+# ── Performance scorer ───────────────────────────────────────────
+# Number of test rounds when running the built-in scorer
+score_num_tests: 3
+
+# ── Whisper internals ────────────────────────────────────────────
+# Higher beam_size = slightly more accurate, slightly slower
+whisper_beam_size: 5
+whisper_language: "en"
+
+# ── Sample rate ──────────────────────────────────────────────────
+# Whisper expects 16000 Hz. Do not change unless you know why.
+sample_rate: 16000

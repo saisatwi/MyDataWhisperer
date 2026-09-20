@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SANA AI Interface</title>
+  <style>
+    :root {
+      --bg: #030712;
+      --card: rgba(17, 24, 39, 0.85);
+      --cyan: #06b6d4;
+      --text: #f9fafb;
+      --muted: #9ca3af;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem;
+    }
+
+    .top-header {
+      width: 100%;
+      max-width: 850px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .brand {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--cyan);
+      letter-spacing: 3px;
+    }
+
+    .clock {
+      font-family: monospace;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .main-viewport {
+      width: 100%;
+      max-width: 850px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      margin: auto 0;
+    }
+
+    .mic-button {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.9);
+      border: 2px solid var(--cyan);
+      color: var(--cyan);
+      font-size: 2.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+      transition: all 0.2s ease;
+    }
+
+    .mic-button.recording {
+      border-color: #f43f5e;
+      color: #f43f5e;
+      box-shadow: 0 0 35px rgba(244, 63, 94, 0.7);
+      transform: scale(1.08);
+    }
+
+    .response-card {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 1.75rem;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .user-query {
+      font-size: 1.05rem;
+      color: var(--muted);
+      font-style: italic;
+      margin-bottom: 1rem;
+    }
+
+    .ai-answer {
+      font-size: 1.25rem;
+      line-height: 1.6;
+      color: var(--text);
+    }
+
+    .meta-bar {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: var(--cyan);
+    }
+
+    .input-bar {
+      width: 100%;
+      max-width: 850px;
+      display: flex;
+      gap: 12px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 1.1rem 1.5rem;
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+    }
+
+    button.send-btn {
+      background: linear-gradient(135deg, var(--cyan), #3b82f6);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0 1.75rem;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-header">
+    <div class="brand">SANA AI</div>
+    <div class="clock" id="liveClock">Loading time...</div>
+  </div>
+
+  <div class="main-viewport">
+    <button class="mic-button" id="micBtn" onclick="toggleRecording()">🎙️</button>
+
+    <div class="response-card">
+      <div class="user-query" id="queryDisplay">Press CapsLock or click Mic to record...</div>
+      <div class="ai-answer" id="answerDisplay">Sana is online and ready.</div>
+      <div class="meta-bar">
+        <span id="latencyDisplay"></span>
+        <span id="statusDisplay">System Ready</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-bar">
+    <input type="text" id="textPrompt" placeholder="Type a message..." onkeydown="if(event.key==='Enter') submitText()" />
+    <button class="send-btn" onclick="submitText()">SEND</button>
+  </div>
+
+  <script>
+    let recognition;
+    let isRecording = false;
+    let finalTranscript = '';
+    const synth = window.speechSynthesis;
+
+    // 1. Synchronize Live Clock
+    async function syncClock() {
+      try {
+        const res = await fetch('/api/time');
+        const data = await res.json();
+        document.getElementById('liveClock').innerText = data.server_time;
+      } catch (e) {
+        document.getElementById('liveClock').innerText = new Date().toLocaleTimeString();
+      }
+    }
+    setInterval(syncClock, 1000);
+    syncClock();
+
+    // 2. Web Speech Recognition Setup
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        finalTranscript = transcript;
+        document.getElementById('queryDisplay').innerText = `You: "${transcript}"`;
+      };
+
+      recognition.onerror = (e) => {
+        console.error("Speech Recognition Error:", e);
+        stopRecording();
+      };
+    }
+
+    // 3. Robust CapsLock Listener
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'CapsLock' && !e.repeat) {
+        e.preventDefault();
+        toggleRecording();
+      }
+    });
+
+    function toggleRecording() {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    }
+
+    function startRecording() {
+      unlockAudio();
+      if (!recognition) {
+        alert("Speech Recognition is not supported in this browser. Please use Chrome or Edge.");
+        return;
+      }
+      isRecording = true;
+      finalTranscript = '';
+      document.getElementById('micBtn').classList.add('recording');
+      document.getElementById('queryDisplay').innerText = "Listening...";
+      document.getElementById('answerDisplay').innerText = "...";
+      document.getElementById('statusDisplay').innerText = "Recording...";
+      recognition.start();
+    }
+
+    function stopRecording() {
+      if (!isRecording) return;
+      isRecording = false;
+      document.getElementById('micBtn').classList.remove('recording');
+      document.getElementById('statusDisplay').innerText = "Processing...";
+      if (recognition) recognition.stop();
+
+      if (finalTranscript.trim()) {
+        processQuery(finalTranscript.trim());
+      } else {
+        document.getElementById('queryDisplay').innerText = "No voice input detected.";
+        document.getElementById('statusDisplay').innerText = "System Ready";
+      }
+    }
+
+    function submitText() {
+      unlockAudio();
+      const input = document.getElementById('textPrompt');
+      const text = input.value.trim();
+      if (text) {
+        document.getElementById('queryDisplay').innerText = `You: "${text}"`;
+        input.value = '';
+        processQuery(text);
+      }
+    }
+
+    async function processQuery(promptText) {
+      document.getElementById('answerDisplay').innerText = "Thinking...";
+      document.getElementById('statusDisplay').innerText = "Sending request...";
+
+      try {
+        const response = await fetch('/api/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: promptText })
+        });
+
+        const data = await response.json();
+        const answer = data.answer || "No response received.";
+
+        document.getElementById('answerDisplay').innerText = answer;
+        document.getElementById('latencyDisplay').innerText = data.latency ? `Latency: ${data.latency}s` : '';
+        document.getElementById('statusDisplay').innerText = "Complete";
+
+        speakResponse(answer);
+      } catch (err) {
+        document.getElementById('answerDisplay').innerText = "Failed to communicate with backend server.";
+        document.getElementById('statusDisplay').innerText = "Server Error";
+      }
+    }
+
+    function unlockAudio() {
+      if (synth.speaking) synth.cancel();
+      const dummy = new SpeechSynthesisUtterance('');
+      synth.speak(dummy);
+    }
+
+    function speakResponse(text) {
+      synth.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      const voices = synth.getVoices();
+      const selectedVoice = voices.find(v => v.lang.includes('en') && (v.name.includes('Google') || v.name.includes('Natural'))) || voices[0];
+      if (selectedVoice) utterance.voice = selectedVoice;
+
+      synth.speak(utterance);
+    }
+
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = () => synth.getVoices();
+    }
+  </script>
+</body>
+</html>
